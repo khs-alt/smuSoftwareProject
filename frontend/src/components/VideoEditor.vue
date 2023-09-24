@@ -21,7 +21,7 @@
     <div class="bottom">
       <!--재생시간-->
       <div class="video-time">
-        <span>{{ currentTime }}</span> / <span>{{ Duration }}</span>
+        <span>{{ CTime.toFixed(2) }}</span> / <span>{{ Duration.toFixed(2) }}</span>
       </div>
       <!--컨트롤 패널-->
       <div class="control-panel">
@@ -33,23 +33,24 @@
       </div>
       <!--타임라인 패널-->
       <div class="timeline-panel">
-        <!--타임라인 영역-->
-        <div class="timeline">
-          <div class="timeline-label" v-for="(img, i) in imgArr" :key="i"
+        <div class="timeline-label" v-for="(img, i) in imgArr" :key="i"
             :style="{ left: (i * timelineImageWidth) + 'px' }">
             <span class="time-label">{{ img.time }}s</span>
           </div>
+        <!--타임라인 영역-->
+        <div class="timeline">
           <div class="timeline-image" v-for="(img, i) in imgArr" :key="i"
             :style="{ left: (i * timelineImageWidth) + 'px' }"  @click="seekToTime(img.time)">
             <img :src="img.url" alt="Image">
           </div>
           <div class="timeline-marker">
             <img src="@/assets/playhead.jpeg"
-              :style="{ left: markerPosition + 'px' }" 
+              :style="{ left: markerPosition + 'px' }" user-drag:none
               draggable="true" 
               @dragstart="startDragPlayhead" 
               @drag="dragPlayhead"
-              @dragover="stopDrag"/>
+              @dragover="stopDrag"
+              />
           </div>
         </div>
       </div>
@@ -73,7 +74,7 @@ export default {
       lastImageTime: 0,
       playheadInterval: null, // 재생 헤드 업데이트를 위한 인터벌 변수 추가
       intervalId: null,
-      currentTime: 0,
+      CTime: 0,
       Duration: 0,
     };
   },
@@ -92,7 +93,14 @@ export default {
 
     //버튼 눌러 파일 업로드
     openFileInput() {
-      this.$refs.fileInput.click();
+      const video = this.$refs.videoPlayer;
+      if(this.videoLoaded){
+        this.$refs.fileInput.click();
+      } else {
+        this.isPlaying = false;
+        video.pause();
+        this.$refs.fileInput.click();
+      }
     },
 
     //재생헤드 이미지 추출
@@ -104,7 +112,7 @@ export default {
 
     updateTime() {
       const video = this.$refs.videoPlayer;
-      this.CurrentTime = video.currentTime;
+      this.CTime = video.currentTime;
     },
 
     getTotalTime() {
@@ -118,7 +126,6 @@ export default {
         if (video.paused) {
           video.play();
           this.isPlaying = true;
-
           this.playheadInterval = setInterval(this.playhead, 16);
         } else {
           video.pause();
@@ -130,10 +137,12 @@ export default {
     },
 
     skipTime(seconds) {
+      if(this.isPlaying) {
       const video = this.$refs.videoPlayer;
       video.currentTime += seconds;
       video.play();
       this.isPlaying = true;
+      }
     },
 
     hanldeVideoEnded() {
@@ -148,7 +157,7 @@ export default {
       video.addEventListener('loadeddata', async () => {
         const duration = Math.floor(video.duration);
 
-        for (let time = 0; time < duration + 1; time++) {
+        for (let time = 0; time <= duration; time++) {
           video.currentTime = time;
           await video.play(); //
           canvas.width = video.videoWidth;
@@ -160,8 +169,9 @@ export default {
           this.lastImageTime  = time;
           video.pause();
         }
+        video.currentTime = 0;
       });
-      this.isPlaying = true;
+      this.isPlaying = false;
     },
 
     startDragPlayhead(event) {
@@ -172,7 +182,7 @@ export default {
       this.startX = event.clientX;
       this.initialTime = this.$refs.videoPlayer.currentTime;
       this.initialMarkerPosition = this.markerPosition;
-      this.$refs.videoPlayer.pause();
+      //this.$refs.videoPlayer.pause();
     },
 
     dragPlayhead(event) {
@@ -180,10 +190,11 @@ export default {
         event.preventDefault();
         const deltaX = event.clientX - this.startX;
         const video = this.$refs.videoPlayer;
+        const max = this.imgArr.length;
         const newTime = this.initialTime + (deltaX / video.clientWidth) * video.duration;
         if (newTime >= 0 && newTime <= video.duration) {
           video.currentTime = newTime;
-          this.markerPosition = (newTime / video.duration) * this.timelineWidth;
+          this.markerPosition = (newTime / video.duration) * this.timelineImageWidth * max;
         }
       }
     },
@@ -193,14 +204,15 @@ export default {
         this.isDragging = false;
         this.markerPosition = this.initialMarkerPosition;
         this.isPlaying = true;
-        this.$refs.videoPlayer.play();
+        //this.$refs.videoPlayer.play();
       }
     },
 
     playhead() {
       if(this.isPlaying) {
+        const max = this.imgArr.length;
         const video = this.$refs.videoPlayer;
-        this.markerPosition = (video.currentTime / video.duration) * 1550;
+        this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
       }
     },
 
@@ -214,11 +226,12 @@ export default {
 
   mounted() {
     const video = this.$refs.videoPlayer;
-    setInterval(this.updateTime, 1000);
+    setInterval(this.updateTime, 100);
     video.addEventListener('loadedmetadata', this.getTotalTime);
   },
   beforeUnmount() {
     const video = this.$refs.videoPlayer;
+    clearInterval(this.updateTime);
     video.removeEventListener('loadedmetadata', this.getTotalTime);
   },
 };
@@ -248,11 +261,23 @@ export default {
   cursor: pointer;
 }
 
+.bottom {
+  position: relative;
+  height: 500px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .video-time {
   text-align: center;
   color: black;
   font-size: 16px;
   margin-top: 10px;
+}
+
+.control-panel {
+  position: absolute;
+  top: -20px;
 }
 
 .control-panel img {
@@ -261,7 +286,7 @@ export default {
 
 .timeline-label {
   position: absolute;
-  top: -20px;
+  top: -40px;
   /* 초 표시를 타임라인 위에 표시하도록 조절 */
   left: 0;
   transform: translateX(-50%);
@@ -279,6 +304,7 @@ export default {
 
 .timeline-panel {
   position: relative;
+  top: 40px;
   width: 100%;
   background-color: #444444;
 }
