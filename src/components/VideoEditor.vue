@@ -29,7 +29,8 @@
         <img :src="isPlaying ? require('@/assets/pause.png') : require('@/assets/play.png')"
           @click.prevent="togglePlayPause" />
         <img src="@/assets/forward.png" @click.prevent="skipTime(3)" />
-        <img src="@/assets/trim.png" @click="split" />
+        <img src="@/assets/trim.png" @click.prevent="split" />
+        <img src="@/assets/remove.png" @click.prevent="removeVideo">
       </div>
       <!--타임라인 패널-->
       <div class="timeline-panel">
@@ -38,13 +39,13 @@
             @mousedown.prevent="startDragPlayhead" @mousemove.prevent="dragPlayhead" @mouseup.prevent="stopDrag" />
         </div>
         <!--타임라인 영역-->
+        <div class="timeline-label" v-for="(label, i) in timeLabel" :key="i"
+          :style="{ left: i * timelineImageWidth + 'px', top: 30 + 'px' }">
+          <span class="time-label">{{ label }}s</span>
+        </div>
         <div class="timeline" v-for="(arr, i) in timeline" :key="i">
-          <div class="timeline-label" v-for="(img, j) in arr.imgArr" :key="j"
-            :style="{ left: ((j + segmentIndex[i]) * timelineImageWidth) + 'px', top: 30 + 'px' }">
-            <span class="time-label">{{ img.time }}s</span>
-          </div>
           <div class="timeline-arr" :style="{ top: 45 + 'px', left: (segmentIndex[i] * timelineImageWidth) + 'px' }"
-            @mouseover="addborder" @mouseleave="removeBorder">
+            @mouseover="addborder" @mouseleave="removeBorder" @click="clickTimeline($event, i)">
             <div class="timeline-image" v-for="(img, j) in arr.imgArr" :key="j"
               :style="{ left: ((j + segmentIndex[i]) * timelineImageWidth) + 'px' }">
               <img :src="img.url" alt="Image">
@@ -57,11 +58,7 @@
 </template>
 
 <script>
-
-
-
-//import axios from 'axios';
-
+import axios from 'axios';
 
 export default {
   data() {
@@ -69,14 +66,19 @@ export default {
       selectedFile: null,   // 파일 선택 여부
       timeline: [], //타임라인
       imgArr: [], //타임라인 이미지 추출 배열
+      timeLabel: [],
       segmentIndex: [], //재생헤드 분할 위치
+      selectedTimelineIndex: -1, //타임라인 클릭 여부
       loadedVideo: false, //배열 추출 여부
       isPlaying: false, //동영상 재생 여부
       markerPosition: 0, //마커 위치
       timelineImageWidth: 100, // 타임라인 이미지 간격 조절
       playheadInterval: null, // 재생 헤드 업데이트를 위한 인터벌 변수 추가
-      CTime: 0,
-      Duration: 0,
+      CTime: 0, //현재 시간
+      Duration: 0,  //총 영상 시간
+      baseUrl: "localhost:8000",
+      undoStack: [],
+      redoStack: [],
     };
   },
 
@@ -109,6 +111,21 @@ export default {
       URL.revokeObjectURL(this.selectedFile);
     },
 
+    // 비디오 업로드 axios
+    postVideo() {
+      let formdata = FormData();
+      formdata.push(this.selectedFile);
+      axios
+        .post(this.baseUrl + "/uploadVideo", formdata)
+        .then((response) => {
+          console.log(response.data);
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+    },
+
+
     //재생헤드 이미지 추출
     async extractImages() {
       const video = this.$refs.video;
@@ -125,6 +142,7 @@ export default {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageDataURL = canvas.toDataURL('image/jpeg'); // 이미지 파일로 변환
         this.imgArr.push({ url: imageDataURL, time });
+        this.timeLabel[time] = time;
         await video.pause(); //잦은 재생, 정지로 에러 발생해 추가
       }
       this.segmentIndex[0] = 0;
@@ -133,11 +151,39 @@ export default {
       this.loadedVideo = true;
     },
 
-    addborder(event) {
-      event.currentTarget.classList.add('hovered');
+    streamingVideo() {
+      const video = this.$refs.video;
+      const mediaSource = new MediaSource();
+      video.src = window.URL.createObjectURL(mediaSource);
+
+      mediaSource.addEventListener('sourceopen', function () {
+        const sourceBuffer = mediaSource.addSourceBuffer('video/mp4');
+
+        axios.get(this.baseUrl + 'segment1.mp4', { responseType: 'arraybuffer' }) //세그먼트 비디오 파일 경로
+          .then(response => {
+            sourceBuffer.appendBuffer(new Uint8Array(response.data));
+          })
+          .then(() => {
+            video.play();
+          })
+          .catch(error => {
+            console.error('Error loading video segment: ', error);
+          });
+      });
     },
+
+    //테두리 생성
+    addborder(event) {
+      if (this.selectedTimelineIndex === -1) {
+        event.currentTarget.classList.add('hovered');
+      }
+    },
+
+    //테두리 제거
     removeBorder(event) {
-      event.currentTarget.classList.remove('hovered');
+      if (this.selectedTimelineIndex === -1) {
+        event.currentTarget.classList.remove('hovered');
+      }
     },
 
     //현재 재생 시간 표시
@@ -155,8 +201,8 @@ export default {
     },
 
     //키보드 제어
-    handleKeydown(event) {
-      const k = event.keyCode;
+    handleKeydown(e) {
+      const k = e.keyCode;
       if (this.selectedFile != null) {
         //오른쪽 방향키(정밀조절)
         if (k === 39) {
@@ -220,16 +266,35 @@ export default {
       const video = this.$refs.video;
       const index = Math.round(video.currentTime); //기준 시간
       const tl = this.timeline;
-      //axios.post(video.currentTime);
 
       for (let i = 0; i < tl.length; i++) {
-        if (tl[i].imgArr[0].time < index && tl[i].imgArr[tl[i].imgArr.length - 1].time > index) {
-          const newVideoSegments = tl[i].imgArr.splice((index - tl[i].imgArr[0].time), (index + tl[i].imgArr.length));
+        if (tl[i].imgArr[0].time < index && tl[i].imgArr[(tl[i].imgArr.length - 1)].time + 1 > index) {
+          const newVideoSegments = tl[i].imgArr.splice((index - tl[i].imgArr[0].time), index + (tl[i].imgArr.length - 1));
           tl.splice(i + 1, 0, { imgArr: newVideoSegments });
           this.segmentIndex.splice(i + 1, 0, index);
         }
       }
-      console.log(tl);
+    },
+
+    //클릭된 타임라인 선택
+    clickTimeline(e, index) {
+      if (index === this.selectedTimelineIndex) {
+        this.selectedTimelineIndex = -1;
+      }
+      else {
+        this.selectedTimelineIndex = index;
+        e.currentTarget.classList.add('hovered');
+      }
+
+    },
+
+    //비디오 삭제
+    removeVideo() {
+      if (this.segmentIndex.length >= 0 && this.selectedTimelineIndex != -1) {
+        this.timeline.splice(this.selectedTimelineIndex, 1);
+        this.segmentIndex.splice(this.selectedTimelineIndex, 1);
+        this.selectedTimelineIndex = -1;
+      }
     },
 
     //재생 끝날 시 자동 멈춤
@@ -241,11 +306,11 @@ export default {
     },
 
     // 재생헤드 드래그 시작
-    startDragPlayhead(event) {
+    startDragPlayhead(e) {
       if (this.selectedFile != null && this.loadedVideo) {
         const video = this.$refs.video;
         this.isDragging = true;
-        this.startX = event.clientX;
+        this.startX = e.clientX;
         this.initialTime = this.$refs.video.currentTime;
         this.isPlaying = false;
         video.pause();
@@ -255,9 +320,9 @@ export default {
     },
 
     // 재생헤드 드래그 중
-    dragPlayhead(event) {
+    dragPlayhead(e) {
       if (this.isDragging) {
-        const deltaX = event.clientX - this.startX;
+        const deltaX = e.clientX - this.startX;
         const video = this.$refs.video;
         const max = video.duration;
         const newTime = this.initialTime + (deltaX / (this.timelineImageWidth * max)) * video.duration;
@@ -268,7 +333,7 @@ export default {
       }
     },
 
-    // 재생헤드 드래그 정지
+    // 재생헤드 드래그 중지
     stopDrag() {
       if (this.isDragging) {
         const video = this.$refs.video;
@@ -277,6 +342,7 @@ export default {
         this.isDragging = false;
         document.removeEventListener('mousemove', this.dragPlayhead);
         document.removeEventListener('mouseup', this.stopDrag);
+        //TODO: 드래그 중지시 현재 시간을 서버로 post
       }
     },
 
@@ -288,14 +354,6 @@ export default {
         this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
       }
     },
-
-    //이미지 클릭 재생 시간 변경
-    seekToTime(time) {
-      const video = this.$refs.video;
-      video.currentTime = time;
-      this.isPlaying = true;
-      video.play();
-    },
   },
 
   mounted() {
@@ -304,7 +362,7 @@ export default {
     setInterval(this.playhead, 1);
   },
 
-  beforeUnmount() {
+  Unmount() {
     window.removeEventListener('keydown', this.handleKeydown);
     clearInterval(this.updateTime);
     clearInterval(this.playhead);
