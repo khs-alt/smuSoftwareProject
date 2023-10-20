@@ -24,6 +24,7 @@
       <!--컨트롤 패널-->
       <div class="control-panel">
         <!--컨트롤 버튼 영억-->
+        <img src="@/assets/edit.png" @click.prevent="editVideo" />
         <img src="@/assets/save.png" @click.prevent="downloadVideo" />
         <img src="@/assets/back.png" @click.prevent="skipTime(-3)" />
         <img :src="isPlaying ? require('@/assets/pause.png') : require('@/assets/play.png')"
@@ -104,17 +105,19 @@ export default {
 
     //영상 로드
     loadVideo() {
+      console.log(this.selectedFile);
       this.$refs.video.src = URL.createObjectURL(this.selectedFile);
       this.timeline = [];
       this.imgArr = [];
       this.loadedVideo = false;
       URL.revokeObjectURL(this.selectedFile);
+      //this.postVideo();
     },
 
     // 비디오 업로드 axios
     postVideo() {
-      let formdata = FormData();
-      formdata.push(this.selectedFile);
+      let formdata = new FormData();
+      formdata.append("video", this.selectedFile);
       axios
         .post(this.baseUrl + "/uploadVideo", formdata)
         .then((response) => {
@@ -219,6 +222,18 @@ export default {
       }
     },
 
+    async editVideo() {
+      await axios
+        .get(this.baseUrl)
+        .then((response) => {
+          console.log(response);
+          this.selectedFile = response.data;
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+
     //영상 다운로드
     downloadVideo() {
       if (this.selectedFile != null) {
@@ -247,6 +262,17 @@ export default {
       }
     },
 
+    postTime(currentTime) {
+      axios
+        .post(this.baseUrl + "/postTime", currentTime)
+        .then((response) => {
+          console.log(response.data);
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+    },
+
     //뒤로가기, 건너뛰기
     skipTime(seconds) {
       if (this.selectedFile != null) {
@@ -254,6 +280,7 @@ export default {
         const max = video.duration;
         video.currentTime += seconds;
         this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
+        this.postTime(video.currentTime);
         if (this.isPlaying) {
           video.play();
           this.isPlaying = true;
@@ -281,16 +308,27 @@ export default {
       if (index === this.selectedTimelineIndex) {
         this.selectedTimelineIndex = -1;
       }
-      else {
+      else if (this.selectedTimelineIndex === -1) {
         this.selectedTimelineIndex = index;
         e.currentTarget.classList.add('hovered');
       }
-
     },
 
     //비디오 삭제
     removeVideo() {
-      if (this.segmentIndex.length >= 0 && this.selectedTimelineIndex != -1) {
+      if (this.segmentIndex.length > 0 && this.selectedTimelineIndex != -1) {
+        let len = this.timeline[this.selectedTimelineIndex].imgArr.length - 1;
+        axios
+          .post(this.baseUrl + "/cutVideo", {
+            "startTime" : this.timeline[this.selectedTimelineIndex].imgArr[0].time,
+            "endTime" : this.timeline[this.selectedTimelineIndex].imgArr[len].time
+          })
+          .then((response) => {
+            console.log(response.data);
+          })
+          .catch((error) => {
+            console.log(error);
+          })
         this.timeline.splice(this.selectedTimelineIndex, 1);
         this.segmentIndex.splice(this.selectedTimelineIndex, 1);
         this.selectedTimelineIndex = -1;
@@ -340,9 +378,9 @@ export default {
         const max = video.duration;
         this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
         this.isDragging = false;
+        this.postTime(video.currentTime);
         document.removeEventListener('mousemove', this.dragPlayhead);
         document.removeEventListener('mouseup', this.stopDrag);
-        //TODO: 드래그 중지시 현재 시간을 서버로 post
       }
     },
 
@@ -362,7 +400,7 @@ export default {
     setInterval(this.playhead, 1);
   },
 
-  Unmount() {
+  beforeUnmount() {
     window.removeEventListener('keydown', this.handleKeydown);
     clearInterval(this.updateTime);
     clearInterval(this.playhead);
