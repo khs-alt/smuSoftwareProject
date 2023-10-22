@@ -77,7 +77,7 @@ export default {
       playheadInterval: null, // 재생 헤드 업데이트를 위한 인터벌 변수 추가
       CTime: 0, //현재 시간
       Duration: 0,  //총 영상 시간
-      baseUrl: "localhost:8000",
+      baseUrl: "localhost:8070",
       undoStack: [],
       redoStack: [],
     };
@@ -86,8 +86,8 @@ export default {
   methods: {
     //drag & drop
     handleFileSelect(event) {
+      event.preventDefault();
       if (event.type === 'drop') {
-        event.preventDefault();
         this.selectedFile = event.dataTransfer.files[0];
       } else if (event.type === 'change') {
         this.selectedFile = event.target.files[0];
@@ -149,10 +149,12 @@ export default {
         await video.pause(); //잦은 재생, 정지로 에러 발생해 추가
       }
       this.segmentIndex[0] = 0;
+      this.timeLabel[this.timeLabel.length] = this.timeLabel.length;
       this.timeline.push({ imgArr: this.imgArr });
       video.currentTime = 0;
       this.loadedVideo = true;
     },
+
 
     streamingVideo() {
       const video = this.$refs.video;
