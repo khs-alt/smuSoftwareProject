@@ -1,4 +1,10 @@
 <template>
+  <div class="modal" v-if="modalCheck == true">
+    <div class="modalContainer">
+      <p>{{ content }}</p>
+      <button class="modalClose" v-if="closeBtn == true" @click.prevent="closeModal">닫기</button>
+    </div>
+  </div>
   <div class="videoEditor" @keydown.prevent="handleKeydown">
     <!--상단부-->
     <div class="top">
@@ -24,7 +30,7 @@
       <!--컨트롤 패널-->
       <div class="control-panel">
         <!--컨트롤 버튼 영억-->
-        <img src="@/assets/edit.png" @click.prevent="editVideo" />
+        <img src="@/assets/edit.png" @click.prevent="clickEditBtn" />
         <img src="@/assets/save.png" @click.prevent="downloadVideo" />
         <img src="@/assets/back.png" @click.prevent="skipTime(-3)" />
         <img :src="isPlaying ? require('@/assets/pause.png') : require('@/assets/play.png')"
@@ -78,12 +84,14 @@ export default {
       CTime: 0, //현재 시간
       Duration: 0,  //총 영상 시간
       baseUrl: "localhost:8070",
-      undoStack: [],
-      redoStack: [],
+      modalCheck: false,
+      closeBtn: false,
+      content: "",
     };
   },
 
   methods: {
+
     //drag & drop
     handleFileSelect(event) {
       event.preventDefault();
@@ -105,7 +113,6 @@ export default {
 
     //영상 로드
     loadVideo() {
-      console.log(this.selectedFile);
       this.$refs.video.src = URL.createObjectURL(this.selectedFile);
       this.timeline = [];
       this.imgArr = [];
@@ -124,7 +131,7 @@ export default {
           console.log(response.data);
         })
         .catch((error) => {
-          console.log(error);
+          console.error(error);
         })
     },
 
@@ -155,7 +162,7 @@ export default {
       this.loadedVideo = true;
     },
 
-
+    //스트리밍 기능
     streamingVideo() {
       const video = this.$refs.video;
       const mediaSource = new MediaSource();
@@ -224,15 +231,33 @@ export default {
       }
     },
 
+    //요약 버튼 클릭
+    clickEditBtn() {
+      if (this.selectedFile != null) {
+        this.modalCheck = true;
+        this.content = "로딩중";
+        this.editVideo();
+      }
+    },
+
+    closeModal() {
+      this.modalCheck = false;
+      this.content = "";
+    },
+
+    //비디오 요약
     async editVideo() {
       await axios
         .get(this.baseUrl)
         .then((response) => {
           console.log(response);
           this.selectedFile = response.data;
+          this.modalCheck = false;
         })
         .catch((error) => {
           console.error(error);
+          this.content = "요약 실패!";
+          this.closeBtn = true;
         });
     },
 
@@ -264,6 +289,7 @@ export default {
       }
     },
 
+    //시간 전송
     postTime(currentTime) {
       axios
         .post(this.baseUrl + "/postTime", currentTime)
@@ -271,7 +297,7 @@ export default {
           console.log(response.data);
         })
         .catch((error) => {
-          console.log(error);
+          console.error(error);
         })
     },
 
@@ -322,14 +348,14 @@ export default {
         let len = this.timeline[this.selectedTimelineIndex].imgArr.length - 1;
         axios
           .post(this.baseUrl + "/cutVideo", {
-            "startTime" : this.timeline[this.selectedTimelineIndex].imgArr[0].time,
-            "endTime" : this.timeline[this.selectedTimelineIndex].imgArr[len].time
+            "startTime": this.timeline[this.selectedTimelineIndex].imgArr[0].time,
+            "endTime": this.timeline[this.selectedTimelineIndex].imgArr[len].time
           })
           .then((response) => {
             console.log(response.data);
           })
           .catch((error) => {
-            console.log(error);
+            console.error(error);
           })
         this.timeline.splice(this.selectedTimelineIndex, 1);
         this.segmentIndex.splice(this.selectedTimelineIndex, 1);
@@ -419,6 +445,30 @@ export default {
   -moz-user-select: none;
   -ms-use-select: none;
   user-select: none;
+}
+
+.modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10;
+}
+
+/* modal or popup */
+.modalContainer {
+  position: relative;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 550px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-sizing: border-box;
+  z-index: 11;
 }
 
 .top {
