@@ -1,8 +1,7 @@
 <template>
-  <div class="modal" v-if="modalCheck == true">
-    <div class="modalContainer">
-      <p>{{ content }}</p>
-      <button class="modalClose" v-if="closeBtn == true" @click.prevent="closeModal">닫기</button>
+  <div class="loadingContainer" v-if="isLoading">
+    <div class="load">
+      <FadeLoader />
     </div>
   </div>
   <div class="videoEditor" @keydown.prevent="handleKeydown">
@@ -31,7 +30,7 @@
       <div class="control-panel">
         <!--컨트롤 버튼 영억-->
         <img src="@/assets/edit.png" @click.prevent="clickEditBtn" />
-        <img src="@/assets/save.png" @click.prevent="downloadVideo" />
+        <!-- <img src="@/assets/save.png" @click.prevent="downloadVideo" /> -->
         <img src="@/assets/back.png" @click.prevent="skipTime(-3)" />
         <img :src="isPlaying ? require('@/assets/pause.png') : require('@/assets/play.png')"
           @click.prevent="togglePlayPause" />
@@ -66,8 +65,10 @@
 
 <script>
 import axios from 'axios';
+import FadeLoader from 'vue-spinner/src/FadeLoader.vue'
 
 export default {
+  components: { FadeLoader },
   data() {
     return {
       selectedFile: null,   // 파일 선택 여부
@@ -85,6 +86,7 @@ export default {
       Duration: 0,  //총 영상 시간
       baseUrl: "localhost:8070",
       modalCheck: false,
+      isLoading: false,
       closeBtn: false,
       content: "",
     };
@@ -235,8 +237,9 @@ export default {
     clickEditBtn() {
       if (this.selectedFile != null) {
         this.modalCheck = true;
-        this.content = "로딩중";
-        this.editVideo();
+        this.isLoading = true;
+        //this.content = "로딩중";
+        //this.editVideo();
       }
     },
 
@@ -251,10 +254,12 @@ export default {
         .get(this.baseUrl)
         .then((response) => {
           console.log(response);
+          this.isLoading = false;
           this.selectedFile = response.data;
           this.modalCheck = false;
         })
         .catch((error) => {
+          this.isLoading = false;
           console.error(error);
           this.content = "요약 실패!";
           this.closeBtn = true;
@@ -447,7 +452,7 @@ export default {
   user-select: none;
 }
 
-.modal {
+/* .modal {
   position: fixed;
   left: 0;
   top: 0;
@@ -456,8 +461,8 @@ export default {
   background: rgba(0, 0, 0, 0.8);
   z-index: 10;
 }
-
-/* modal or popup */
+/* 
+/* modal or popup
 .modalContainer {
   position: relative;
   top: 50%;
@@ -469,6 +474,25 @@ export default {
   padding: 20px;
   box-sizing: border-box;
   z-index: 11;
+} */
+
+.loadingContainer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10;
+}
+
+.load {
+  z-index: 11;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: rgba(0, 0, 0, 0.6);
 }
 
 .top {
