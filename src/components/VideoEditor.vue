@@ -1,4 +1,9 @@
 <template>
+  <div class="summerizedVideo" v-if="isSummerize">
+    <div class="sVideo">
+      <video class="sumVideo" ref="sVideo"></video>
+    </div>
+  </div>
   <div class="loadingContainer" v-if="isLoading">
     <div class="load">
       <FadeLoader />
@@ -16,7 +21,7 @@
       </div>
       <!--비디오 뷰어 패널-->
       <div class="viewer-panel">
-        <video class="video" ref="video" @loadeddata="extractImages" @loadedmetadata="getTotalTime"
+        <video class="video" :src="videoSrc" ref="video" @loadeddata="extractImages" @loadedmetadata="getTotalTime"
           @ended="hanldeVideoEnded"></video>
       </div>
     </div>
@@ -30,7 +35,7 @@
       <div class="control-panel">
         <!--컨트롤 버튼 영억-->
         <img src="@/assets/edit.png" @click.prevent="clickEditBtn" />
-        <!-- <img src="@/assets/save.png" @click.prevent="downloadVideo" /> -->
+        <img src="@/assets/save.png" @click.prevent="downloadVideo" />
         <img src="@/assets/back.png" @click.prevent="skipTime(-3)" />
         <img :src="isPlaying ? require('@/assets/pause.png') : require('@/assets/play.png')"
           @click.prevent="togglePlayPause" />
@@ -72,9 +77,10 @@ export default {
   data() {
     return {
       selectedFile: null,   // 파일 선택 여부
+      videoSrc: null, //비디오 주소 바인딩
       timeline: [], //타임라인
       imgArr: [], //타임라인 이미지 추출 배열
-      timeLabel: [],
+      timeLabel: [],  //타임라인 초
       segmentIndex: [], //재생헤드 분할 위치
       selectedTimelineIndex: -1, //타임라인 클릭 여부
       loadedVideo: false, //배열 추출 여부
@@ -84,11 +90,13 @@ export default {
       playheadInterval: null, // 재생 헤드 업데이트를 위한 인터벌 변수 추가
       CTime: 0, //현재 시간
       Duration: 0,  //총 영상 시간
-      baseUrl: "localhost:8070",
+      baseUrl: "http://localhost:8000",
       modalCheck: false,
       isLoading: false,
       closeBtn: false,
       content: "",
+      pollingInterval: null,
+      isSummerize: false,
     };
   },
 
@@ -115,7 +123,7 @@ export default {
 
     //영상 로드
     loadVideo() {
-      this.$refs.video.src = URL.createObjectURL(this.selectedFile);
+      this.videoSrc = URL.createObjectURL(this.selectedFile);
       this.timeline = [];
       this.imgArr = [];
       this.loadedVideo = false;
@@ -125,12 +133,17 @@ export default {
 
     // 비디오 업로드 axios
     postVideo() {
-      let formdata = new FormData();
+      var formdata = new FormData();
       formdata.append("video", this.selectedFile);
       axios
-        .post(this.baseUrl + "/uploadVideo", formdata)
+        .post(this.baseUrl + "/uploadVideo", formdata, {
+          // headers: {
+          //   'Content-Type' : 'multipart/form-data'
+          // }
+        })
         .then((response) => {
           console.log(response.data);
+          alert(response.data)
         })
         .catch((error) => {
           console.error(error);
@@ -140,35 +153,35 @@ export default {
 
     //재생헤드 이미지 추출
     async extractImages() {
-      const video = this.$refs.video;
+      const v = this.$refs.video;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
-      const duration = Math.floor(video.duration);
+      const duration = Math.floor(v.duration);
 
       for (let time = 0; time <= duration; time++) {
-        video.currentTime = time;
-        await video.play();
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        v.currentTime = time;
+        await v.play();
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
         const imageDataURL = canvas.toDataURL('image/jpeg'); // 이미지 파일로 변환
         this.imgArr.push({ url: imageDataURL, time });
         this.timeLabel[time] = time;
-        await video.pause(); //잦은 재생, 정지로 에러 발생해 추가
+        await v.pause(); //잦은 재생, 정지로 에러 발생해 추가
       }
       this.segmentIndex[0] = 0;
       this.timeLabel[this.timeLabel.length] = this.timeLabel.length;
       this.timeline.push({ imgArr: this.imgArr });
-      video.currentTime = 0;
+      v.currentTime = 0;
       this.loadedVideo = true;
     },
 
     //스트리밍 기능
     streamingVideo() {
-      const video = this.$refs.video;
+      const v = this.$refs.video;
       const mediaSource = new MediaSource();
-      video.src = window.URL.createObjectURL(mediaSource);
+      v.src = window.URL.createObjectURL(mediaSource);
 
       mediaSource.addEventListener('sourceopen', function () {
         const sourceBuffer = mediaSource.addSourceBuffer('video/mp4');
@@ -178,7 +191,7 @@ export default {
             sourceBuffer.appendBuffer(new Uint8Array(response.data));
           })
           .then(() => {
-            video.play();
+            v.play();
           })
           .catch(error => {
             console.error('Error loading video segment: ', error);
@@ -202,15 +215,15 @@ export default {
 
     //현재 재생 시간 표시
     updateTime() {
-      const video = this.$refs.video;
-      this.CTime = video.currentTime;
+      const v = this.$refs.video;
+      this.CTime = v.currentTime;
     },
 
     //영상의 총 시간 표시
     getTotalTime() {
-      const video = this.$refs.video;
-      if (video.readyState >= 2) {
-        this.Duration = video.duration;
+      const v = this.$refs.video;
+      if (v.readyState >= 2) {
+        this.Duration = v.duration;
       }
     },
 
@@ -235,42 +248,51 @@ export default {
 
     //요약 버튼 클릭
     clickEditBtn() {
-      if (this.selectedFile != null) {
-        this.modalCheck = true;
-        this.isLoading = true;
-        //this.content = "로딩중";
-        //this.editVideo();
-      }
-    },
-
-    closeModal() {
-      this.modalCheck = false;
-      this.content = "";
+      //if (this.selectedFile != null) {
+      this.isLoading = true;
+      this.editVideo();
+      //  }
     },
 
     //비디오 요약
-    async editVideo() {
-      await axios
-        .get(this.baseUrl)
+    editVideo() {
+      axios
+        .get(this.baseUrl + "/start")
         .then((response) => {
           console.log(response);
-          this.isLoading = false;
-          this.selectedFile = response.data;
-          this.modalCheck = false;
+          //this.pollingInterval = setInterval(this.pollJobStatus, 2000);
+
         })
         .catch((error) => {
           this.isLoading = false;
           console.error(error);
-          this.content = "요약 실패!";
-          this.closeBtn = true;
         });
+    },
+
+    //TODO:
+    async pollJobStatus() {
+      console.log("We are in pollJobStatus!!")
+      await axios
+        .get(this.baseUrl + "/check_video_summary")
+        .then(response => {
+          if (response.data.status === "completed") {
+            this.message = "Job completed";
+            this.isLoading = false;
+            clearInterval(this.pollingInterval);
+            this.videoSrc = "http://localhost:8000/summerized_video";
+            this.timeline = []
+            this.selectedTimelineIndex = -1;
+            this.segmentIndex = [];
+          }
+        });
+      //console.error(error);
     },
 
     //영상 다운로드
     downloadVideo() {
       if (this.selectedFile != null) {
-        const video = this.$refs.video.src;
-        const url = video;
+        const v = this.$refs.video.src;
+        const url = v;
         const a = document.createElement('a');
         const fName = this.selectedFile.name;
         a.href = url;
@@ -282,13 +304,13 @@ export default {
 
     //재생 여부에 따라 버튼 변경
     togglePlayPause() {
-      const video = this.$refs.video;
-      if (video.readyState >= 2) {
-        if (video.paused) {
-          video.play();
+      const v = this.$refs.video;
+      if (v.readyState >= 2) {
+        if (v.paused) {
+          v.play();
           this.isPlaying = true;
         } else {
-          video.pause();
+          v.pause();
           this.isPlaying = false;
         }
       }
@@ -309,13 +331,13 @@ export default {
     //뒤로가기, 건너뛰기
     skipTime(seconds) {
       if (this.selectedFile != null) {
-        const video = this.$refs.video;
-        const max = video.duration;
-        video.currentTime += seconds;
-        this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
-        this.postTime(video.currentTime);
+        const v = this.$refs.video;
+        const max = v.duration;
+        v.currentTime += seconds;
+        this.markerPosition = (v.currentTime / v.duration) * this.timelineImageWidth * max;
+        this.postTime(v.currentTime);
         if (this.isPlaying) {
-          video.play();
+          v.play();
           this.isPlaying = true;
         }
       }
@@ -323,8 +345,8 @@ export default {
 
     //영상 분할
     split() {
-      const video = this.$refs.video;
-      const index = Math.round(video.currentTime); //기준 시간
+      const v = this.$refs.video;
+      const index = Math.round(v.currentTime); //기준 시간
       const tl = this.timeline;
 
       for (let i = 0; i < tl.length; i++) {
@@ -370,21 +392,21 @@ export default {
 
     //재생 끝날 시 자동 멈춤
     hanldeVideoEnded() {
-      const video = this.$refs.video;
+      const v = this.$refs.video;
       this.isPlaying = false;
-      video.currentTime = 0;
+      v.currentTime = 0;
       this.markerPosition = 0;
     },
 
     // 재생헤드 드래그 시작
     startDragPlayhead(e) {
       if (this.selectedFile != null && this.loadedVideo) {
-        const video = this.$refs.video;
+        const v = this.$refs.video;
         this.isDragging = true;
         this.startX = e.clientX;
         this.initialTime = this.$refs.video.currentTime;
         this.isPlaying = false;
-        video.pause();
+        v.pause();
         document.addEventListener('mousemove', this.dragPlayhead);
         document.addEventListener('mouseup', this.stopDrag);
       }
@@ -394,12 +416,12 @@ export default {
     dragPlayhead(e) {
       if (this.isDragging) {
         const deltaX = e.clientX - this.startX;
-        const video = this.$refs.video;
-        const max = video.duration;
-        const newTime = this.initialTime + (deltaX / (this.timelineImageWidth * max)) * video.duration;
-        if (newTime >= 0 && newTime <= video.duration) {
-          video.currentTime = newTime;
-          this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
+        const v = this.$refs.video;
+        const max = v.duration;
+        const newTime = this.initialTime + (deltaX / (this.timelineImageWidth * max)) * v.duration;
+        if (newTime >= 0 && newTime <= v.duration) {
+          v.currentTime = newTime;
+          this.markerPosition = (v.currentTime / v.duration) * this.timelineImageWidth * max;
         }
       }
     },
@@ -407,11 +429,11 @@ export default {
     // 재생헤드 드래그 중지
     stopDrag() {
       if (this.isDragging) {
-        const video = this.$refs.video;
-        const max = video.duration;
-        this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
+        const v = this.$refs.video;
+        const max = v.duration;
+        this.markerPosition = (v.currentTime / v.duration) * this.timelineImageWidth * max;
         this.isDragging = false;
-        this.postTime(video.currentTime);
+        this.postTime(v.currentTime);
         document.removeEventListener('mousemove', this.dragPlayhead);
         document.removeEventListener('mouseup', this.stopDrag);
       }
@@ -420,25 +442,27 @@ export default {
     //재생헤드 영상 시간에 맞춰 움직이게
     playhead() {
       if (this.isPlaying && !this.isDragging) {
-        const video = this.$refs.video;
-        const max = video.duration;
-        this.markerPosition = (video.currentTime / video.duration) * this.timelineImageWidth * max;
+        const v = this.$refs.video;
+        const max = v.duration;
+        this.markerPosition = (v.currentTime / v.duration) * this.timelineImageWidth * max;
       }
     },
-  },
 
-  mounted() {
-    window.addEventListener('keydown', this.handleKeydown);
-    setInterval(this.updateTime, 1);
-    setInterval(this.playhead, 1);
-  },
+    mounted() {
+      window.addEventListener('keydown', this.handleKeydown);
+      setInterval(this.updateTime, 1);
+      setInterval(this.playhead, 1);
+      // extractImages()
 
-  beforeUnmount() {
-    window.removeEventListener('keydown', this.handleKeydown);
-    clearInterval(this.updateTime);
-    clearInterval(this.playhead);
-  },
-};
+    },
+
+    beforeUnmount() {
+      window.removeEventListener('keydown', this.handleKeydown);
+      clearInterval(this.updateTime);
+      clearInterval(this.playhead);
+    },
+  }
+}
 
 </script>
 
@@ -487,6 +511,25 @@ export default {
 }
 
 .load {
+  z-index: 11;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: rgba(0, 0, 0, 0.6);
+}
+
+.summerizedVideo {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10;
+}
+
+.sVideo {
   z-index: 11;
   position: fixed;
   top: 50%;
