@@ -1,0 +1,6 @@
+## NESOY Ignore File ##
+
+*.log
+*.bak
+
+ffmpeg/
