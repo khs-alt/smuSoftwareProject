@@ -8,15 +8,17 @@ from tqdm.auto import tqdm
 import re
 
 # openai 엄지호 api key 
-openai_api_key = "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"
+openai_api_key = "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"
 openai.api_key = openai_api_key
 
-gpt_model = "gpt-3.5-turbo-16k"
+gpt_model = "gpt-4-1106-preview"
 #gpt_model = "gpt-4"
 temperature = 0.3
 
 # 모델 로드
 model = whisper.load_model("medium")
+#먼저 meduim 모델을 로드하고, 추후 공간이 되면 large 모델을 로드합니다.
+#model = whisper.load_model("large-v3")
 print("Whisper model loaded.")
 
 def format_time(seconds):
@@ -52,18 +54,23 @@ def extract_times(text):
     pattern2 = r'\d{2}:\d{2}:\d{2}.\d{3} - \d{2}:\d{2}:\d{2}.\d{3}'
     pattern3 = r'\d{2}:\d{2}:\d{2}.\d{3}부터 \d{2}:\d{2}:\d{2}.\d{3}'
     pattern4 = r'\d{2}:\d{2}:\d{2}.\d{3} ~ \d{2}:\d{2}:\d{2}.\d{3}'
+    pattern5 = r'\d{2}:\d{2}:\d{2}.\d{3} to \d{2}:\d{2}:\d{2}.\d{3}'
     
     matches1 = re.findall(pattern1, text)
     matches2 = re.findall(pattern2, text)
     matches3 = re.findall(pattern3, text)
     matches4 = re.findall(pattern4, text)
+    matches5 = re.findall(pattern5, text)
     
     match1 = [m1.replace(" --> ", "-") for m1 in matches1]
     match2 = [m2.replace(" - ", "-") for m2 in matches2]
     match3 = [m3.replace("부터 ", "-") for m3 in matches3]
     match4 = [m4.replace(" ~ ", "-") for m4 in matches4] 
+    match5 = [m5.replace(" to ", "-") for m5 in matches5]
     
-    times = match1 + match2 + match3 + match4
+    times = match1 + match2 + match3 + match4 + match5
+    
+    # times = [t.replace(" - ", "-") for t in match]
 
     return times
 
@@ -145,10 +152,12 @@ def auto_editing_video(video_file_path, audio_file_path, subtitle_file_path, sum
     summerized_text = get_summerize_text(srt_contents)
 
     # 요약된 자막 및 타임라인 출력
-    print(summerized_text)
+    print("타임라인에 매칭된 요약된 자막\n" + summerized_text)
     
     # 요약된 자막에서 타임라인만 추출
     times = extract_times(summerized_text)
+    print("타임라인만 추출\n")
+    print(times)
 
     # 요약된 자막 summerized_subtitle_file_path에 저장
     save_summerized_timeline(video_file_path, summerized_subtitle_file_path, times)

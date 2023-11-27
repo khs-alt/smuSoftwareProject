@@ -40,8 +40,10 @@ def long_running_job():
     subtitle_file_path = "subtitle" # 폴더로 끝나는 path
     summerized_subtitle_file_path = "summerized_subtitle" # 폴더로 끝나는 path
     print("================================================")
-
+    start = time.time()
     result_times = auto_editing_video(video_file_path, audio_file_path, subtitle_file_path, summerized_subtitle_file_path)
+    end = time.time()
+    print(f"총 걸린 시간: {end - start:.5f} sec")
     print(result_times)
     # strarr = ""
     # for i in result_times:

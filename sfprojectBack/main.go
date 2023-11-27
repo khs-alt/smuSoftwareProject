@@ -46,6 +46,49 @@ func getFPS(videoPath string) (float64, error) {
 	return float64(num) / float64(den), nil
 }
 
+func fadein() {
+	// 비디오 클립 페이드인, 페이드아웃 효과 추가 및 자르기
+	clip1 := exec.Command("ffmpeg", "-i", "./output/output_01.mp4", "-ss", "10", "-to", "20", "-vf", "fade=t=in:st=0:d=1,fade=t=out:st=9:d=1", "clip1.mp4")
+	clip2 := exec.Command("ffmpeg", "-i", "./output/output_02.mp4", "-ss", "10", "-to", "20", "-vf", "fade=t=in:st=0:d=1,fade=t=out:st=9:d=1", "clip2.mp4")
+	clip3 := exec.Command("ffmpeg", "-i", "./output/output_03.mp4", "-ss", "20", "-to", "30", "-vf", "fade=t=in:st=0:d=1,fade=t=out:st=9:d=1", "clip3.mp4")
+
+	// 각 클립을 처리합니다.
+	if err := clip1.Run(); err != nil {
+		log.Fatalf("Error processing clip1: %v", err)
+	}
+	if err := clip2.Run(); err != nil {
+		log.Fatalf("Error processing clip2: %v", err)
+	}
+	if err := clip3.Run(); err != nil {
+		log.Fatalf("Error processing clip3: %v", err)
+	}
+	// if err := clip4.Run(); err != nil {
+	// 	log.Fatalf("Error processing clip4: %v", err)
+	// }
+
+	// 비디오 클립 합치기
+	concatCmd := exec.Command("ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat_list.txt", "-c", "copy", "combined_temp.mp4")
+
+	// concat_list.txt는 clip1.mp4, clip2.mp4, clip3.mp4, clip4.mp4 파일명을 포함해야 합니다.
+	if err := concatCmd.Run(); err != nil {
+		log.Fatalf("Error concatenating clips: %v", err)
+	}
+
+	// 오디오 파일 처리 및 볼륨 조절
+	audioCmd := exec.Command("ffmpeg", "-i", "./originalVideo/original.mp4", "-af", "afade=t=in:st=0:d=1,volume=0.1", "audio.mp3")
+
+	if err := audioCmd.Run(); err != nil {
+		log.Fatalf("Error processing audio: %v", err)
+	}
+
+	// 최종 비디오에 오디오 합치기
+	finalCmd := exec.Command("ffmpeg", "-i", "combined_temp.mp4", "-i", "audio.mp3", "-c:v", "copy", "-c:a", "aac", "-strict", "experimental", "combined.mp4")
+
+	if err := finalCmd.Run(); err != nil {
+		log.Fatalf("Error combining video and audio: %v", err)
+	}
+}
+
 func main() {
 	fmt.Println("Hello world!")
 
@@ -66,4 +109,5 @@ func main() {
 	// fmt.Println(err)
 	// fmt.Println(f)
 
+	//fadein()
 }
