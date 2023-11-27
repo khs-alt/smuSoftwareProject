@@ -1,0 +1,10 @@
+## NESOY Ignore File ##
+
+*.log
+*.bak
+*.mp4
+
+ffmpeg/
+/sfprojectBack/ffmpeg
+ffmpeg/
+ffmpeg
