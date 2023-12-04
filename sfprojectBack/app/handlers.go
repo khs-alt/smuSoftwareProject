@@ -51,6 +51,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) {
+	util.EnableCors(&w)
 	resp, err := http.Get("http://localhost:8070")
 	if err != nil {
 		http.Error(w, "Failed to connect to Flask server", http.StatusInternalServerError)
@@ -99,6 +100,7 @@ func serveSummarizeVideoHandler(w http.ResponseWriter, r *http.Request) {
 
 func serveSegmentVideoHandler(w http.ResponseWriter, r *http.Request) {
 	// 비디오 파일을 읽어서 클라이언트로 전송
+	util.EnableCors(&w)
 	videoID := mux.Vars(r)["id"]
 	fmt.Println("serveVideosHandler : " + r.Method)
 	fmt.Println(videoID)
