@@ -4,11 +4,11 @@ module.exports = defineConfig({
   devServer: {
     // port: 8080,
     // disableHostCheck: true
-    proxy: {
-      "/": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-    },
+    // proxy: {
+    //   "/": {
+    //     target: "http://localhost:8080",
+    //     // changeOrigin: true,
+    //   },
+    // },
   },
 });
