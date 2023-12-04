@@ -90,7 +90,7 @@ export default {
       playheadInterval: null, // 재생 헤드 업데이트를 위한 인터벌 변수 추가
       CTime: 0, //현재 시간
       Duration: 0,  //총 영상 시간
-      baseUrl: "http://34.64.149.210",
+      baseUrl: "http://34.64.149.210:8000",
       modalCheck: false,
       isLoading: false,
       closeBtn: false,
