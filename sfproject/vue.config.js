@@ -6,7 +6,7 @@ module.exports = defineConfig({
     // disableHostCheck: true
     proxy: {
       "/": {
-        target,
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
     },
