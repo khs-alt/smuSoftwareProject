@@ -16,9 +16,9 @@ gpt_model = "gpt-4-1106-preview"
 temperature = 0.3
 
 # 모델 로드
-# model = whisper.load_model("medium")
+model = whisper.load_model("medium")
 # 먼저 meduim 모델을 로드하고, 추후 공간이 되면 large 모델을 로드합니다.
-model = whisper.load_model("large-v3")
+# model = whisper.load_model("large-v3")
 print("Whisper model loaded.")
 
 
