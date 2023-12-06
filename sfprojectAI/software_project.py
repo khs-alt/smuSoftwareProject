@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 import re
 
 # openai 엄지호 api key 
-openai_api_key = "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"
+openai_api_key = "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"
 openai.api_key = openai_api_key
 
 gpt_model = "gpt-4-1106-preview"

@@ -63,6 +63,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 
 // 프론트에서 날라온 Original Video를 저장함.
 func receviedVideoHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("receviedVideoHandler : " + r.Method)
 	util.EnableCors(&w)
 	originalVideo, originalvideoHandler, err := r.FormFile("video")
 
