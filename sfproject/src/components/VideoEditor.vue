@@ -137,9 +137,9 @@ export default {
       formdata.append("video", this.selectedFile);
       axios
         .post(this.baseUrl + "/uploadVideo", formdata, {
-          // headers: {
-          //   'Content-Type' : 'multipart/form-data'
-          // }
+          headers: {
+            'Content-Type' : 'multipart/form-data'
+          }
         })
         .then((response) => {
           console.log(response.data);
