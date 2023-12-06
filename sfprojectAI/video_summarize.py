@@ -6,6 +6,7 @@ import whisper
 import openai
 
 # openai 엄지호 api key 
+#TODO: need to add openai key
 openai_api_key = "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"
 openai.api_key = openai_api_key
 
