@@ -582,6 +582,7 @@ export default {
 }
 
 .viewer-panel {
+  display: flex;
   width: auto;
   height: 100%;
   background-color: #444444;
