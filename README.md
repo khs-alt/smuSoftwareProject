@@ -2,7 +2,9 @@
 
 ![Image](https://github.com/user-attachments/assets/1dc04ef0-30f7-4c33-8646-ec0af4811773)
 
-**Cloud Video Editor**는 웹 브라우저 상에서 직접 동영상을 편집할 수 있는 Vue 3 기반 비디오 편집 플랫폼입니다. 사용자는 동영상을 업로드하고, 재생해보며, 프레임 타임라인을 통해 원하는 시점을 탐색하거나 편집할 수 있습니다.
+**Cloud Video Editor**는 Vue 3 기반의 웹 비디오 편집 플랫폼으로,
+브라우저 상에서 동영상을 직접 편집하고 원본 대비 60%로 요약된 영상을 생성할 수 있습니다.
+사용자는 동영상을 업로드한 뒤, 재생 화면과 프레임 단위 타임라인을 통해 원하는 시점을 탐색하고 편집할 수 있습니다.
 
 ## 📌 주요 기능 요약
 
@@ -49,14 +51,6 @@ npm run build    # 프로덕션 빌드
 | 라이브러리                    | 설명                  |
 | ------------------------ | ------------------- |
 | `vue@3`                  | Vue.js 3 기반 프론트엔드   |
-| `fluent-ffmpeg`          | FFmpeg API (비디오 처리) |
-| `video-editing-timeline` | 프레임 타임라인 구성         |
-| `vue-video-player`       | 비디오 재생 UI           |
-| `v-drag`, `vuedraggable` | 드래그 앤 드롭 기능         |
 | `axios`                  | 비동기 요청              |
 
 ---
-
-## 🎨 사용자 인터페이스
-
-`src/assets` 폴더에는 다양한 UI 아이콘 (play, pause, trim, save 등)이 존재하며, 비디오 편집 툴바에 활용됩니다.
