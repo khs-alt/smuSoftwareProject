@@ -1,5 +1,7 @@
 # 🎬 Cloud Video Editor
 
+![Image](https://github.com/user-attachments/assets/1dc04ef0-30f7-4c33-8646-ec0af4811773)
+
 **Cloud Video Editor**는 웹 브라우저 상에서 직접 동영상을 편집할 수 있는 Vue 3 기반 비디오 편집 플랫폼입니다. 사용자는 동영상을 업로드하고, 재생해보며, 프레임 타임라인을 통해 원하는 시점을 탐색하거나 편집할 수 있습니다.
 
 ## 📌 주요 기능 요약
